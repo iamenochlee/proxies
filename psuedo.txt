@@ -1,0 +1,76 @@
+Proxy Contract
+
+- The Proxy Contract
+This contract stores all storage variables
+has an implementation address to use
+has a change implementation logic to change the contract impl
+should not hold logics that may change
+A fallback func that can forward calldata to impl contract using delegatecall
+
+- Logic Contract
+this contract should not store storage values
+this contract should only impl logic
+
+- Quirks
+at compile time for contract the abi determines what functons can be called,
+ so switching the abi to the new one using the proxy CA is a way out
+storage point collision, to solve this, we assign a place in storage for the impl address
+
+- Utils
+mappings - keccak((key + storageSlot hash without 0x1 with padded 0s));
+values - keccak(storageslot);
+
+- Why's?
+When a storage is change but it doesn't exist on the proxy, 
+  does it change it on the logic if the logic has it?
+
+_ TryOut
+how can i have just a contract for storage seperately???
+
+
+
+Observations
+case 1:
+ allocated slot for impl address
+ no storage variable, i.e no x, 
+ using delegatecall
+ using changeX somehow creates a storage for x and ses value as given
+ also tripleX which is defined on logic2 only works, it trples x on proxy storage
+-same outcome when x is actually defined(manually assigned slot 0x0);
+ seems delegatecall creates the variable x for the proxy storage???
+
+case 2:
+ manually assigning slot for impl address 
+ no storage variable x;
+ using delegatecall
+ seems its working the same way, using logic and logic2 changeX creates the variable x and strore given value on proxy's storsage
+ tripleX, which is only defined on logic2 has no effect when called, it doesnt do anything to the x created on proxy
+ when x is manually defined, tripleX works
+
+Question:
+
+  why is trippleX working on assigned slot, and not on manually declared slot for implementation address?
+
+  why are they even passing, shouldn't they fail since x is not defined on the proxy storage?
+
+
+
+  Hello @Al | ChainShot#9778  while going through the proxies i noticed some weird behaviors, i need some insights. 
+
+  i) the delegatecall is allowed to create storage variables on the proxy contract, i.e if the `uint x` is not defined it goes ahead to create it.
+  ii)I have 3 contracts, with functions in them.
+
+      a) Proxy Contract with 2 functions - `changeImplementation` and the `fallback`
+      b) Logic1 contract has 1 storage variable `uint x`, and a `changeX` function that simply changes x
+      c) Logic2 contract has 1 storage variable `uint x`, `changeX` function that simply changes x, and `tripleX` function that tripples the value of x.
+
+  
+  Here is the issue:
+  I implementated the Proxy Contract in two different ways, manually assigned storage for `address implementation`, and the other one using the `storageSlot` library.
+
+  Behaviors:
+  when working with the storageSlot implementated Proxy, delegatecall creates `uint x` it if it doesnt exist, and if i manually added it to the storage, it  uses it instead. when i changeImplementation all functions on both logic1 and logic2 contracts works as expected.
+
+  on the other hand, when working with manually assigned.
+    when x is manually defined - every works as expected, all functions in both logic works.
+    when x is not defined - changeX works on both logic, but when tripleX which is only defined on Logic2 is called it doesnt do anything, the value of x is not tripled.
